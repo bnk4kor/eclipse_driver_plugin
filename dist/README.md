@@ -33,7 +33,7 @@ No build step required—everything is ready to run out of the box.
 
 **Claude Code (from GitHub):**
 ```powershell
-claude plugin install eclipse-driver --marketplace https://bosch.ghe.com/bnk4kor/eclipse_driver.git
+claude plugin install eclipse-driver --marketplace https://github.com/bnk4kor/eclipse_driver.git
 ```
 
 **Claude Code (from a downloaded folder):**
