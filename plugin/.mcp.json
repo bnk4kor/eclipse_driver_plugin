@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "eclipse-driver": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/eclipse-driver-server.cmd",
+      "args": []
+    }
+  }
+}

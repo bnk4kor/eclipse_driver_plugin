@@ -1,0 +1,10 @@
+{
+  "name": "eclipse-driver",
+  "description": "Observe and operate a running Eclipse RCP application (menus, dialogs, editors, native dialogs, logs) through MCP.",
+  "version": "0.1.0",
+  "author": { "name": "Bosch" },
+  "repository": "https://bosch.ghe.com/bnk4kor/eclipse_driver.git",
+  "license": "UNLICENSED",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

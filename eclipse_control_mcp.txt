@@ -1,0 +1,124 @@
+<task>
+Build "eclipse-driver": an MCP server that controls and observes a running Eclipse-based RCP application (the Eclipse IDE or any RCP product). The user supplies the installation path of the target (a directory or a single launcher/jar). The tool must work on installs it has never seen before.
+
+Read the current environment first: Java version available, Maven or Gradle, and the Eclipse/Equinox/SWT versions in the sample target's `plugins/` directory. Use what is actually installed. Stop and ask me for a path before writing integration code.
+</task>
+
+<architecture>
+Two processes. Do not collapse them.
+1. In-process agent: an OSGi bundle injected into the target Eclipse JVM. It runs inside the UI runtime so it can reach the SWT Display, workbench, and jobs. It exposes a small loopback-only, token-authenticated RPC endpoint (HTTP+JSON or WebSocket; pick one and justify it in a short ARCHITECTURE.md).
+2. MCP server: a standalone process speaking MCP over stdio. It launches or attaches to the target, loads the agent, and translates MCP tool calls to agent RPC.
+
+Attach modes (both required):                                                                                                                                    - launch: start the install given its path, with the agent bundle rhe install (e.g. `-Dosgi.bundles` or `-Dosgi.framework.extensions`via launcher args, `-vmargs`, or a separate configuration area). Never write into the user's install directory.                                                  - attach: connect to an already running instance via JVM Attach APIad a Java agent, and have it install and start the OSGi bundle. Fall back to a clear error with diagnostics if attach is disabled.                                                                                                    
+Use SWTBot where it helps (widget lookup, matchers, waits). Fall back to direct SWT `Display.syncExec` / widget-tree traversal where SWTBot is limited. Resolve  SWTBot and SWT dependencies against the target's own bundles when pw. All UI access MUST go through the correct thread: the UI threadfor widget access, and never block the UI thread while waiting.                                                                                                  </architecture>
+                                                                                                                                                                 <mcp_tools>
+Design a coherent, minimal-overlap tool set. Every tool has a typed JSON schema, a precise description, and structured JSON output (no prose blobs). Every responthat depends on UI state includes a state snapshot id so stale refe
+
+
+Session and instances
+- connect (launch or attach), disconnect, list_instances, get_status, get_logs.
+- set_trace turns on the opt-in call trace.
+- journal_note and get_journal hold the tester's findings and feedback.
+
+Launch and process (the loop tools)
+- run_script runs your test launch script, streams its output and returns the exit code.
+- read_process_output, stop_process.
+- list_launch_configs, launch (run or debug, by config name), terminate_launch.
+
+See (all work while a modal dialog is open)
+- list_shells, read_dialog, read_workbench.
+- read_widget_tree plus find_elements (a matcher query that returns refs).
+- read_element returns one widget's full state: text, enabled, visible, focus, bounds, tooltip, selection.
+- read_text, read_tree and read_table (paged, since big trees are lazy), read_menu (menu structure without clicking), read_toolbar, read_status_line.
+- screenshot of a shell, an element or a region. state_diff shows what changed since a snapshot id.
+- read_clipboard.
+
+See: Eclipse-aware
+- read_editor: path, dirty flag, cursor, selection, form-editor pag
+- read_views, read_selection, read_outline, read_properties.
+- read_console, read_progress, read_problems, read_error_log.
+- read_junit: runs, failures and traces.
+- read_debug: launches, threads, stack frames, variables, breakpoin
+
+Act: pointer and keyboard
+- click (button and modifiers), double_click, right_click_menu, hover, drag_drop, scroll.
+- press_key, key_chord, type_text (real key events), set_text (dire
+- focus, move_resize_shell, maximize_minimize.
+
+Act: widgets
+- select (combo, list, table, tree, tab), check and uncheck, expand
+
+Act: workbench
+- menu_select, context_menu_select, toolbar_click.
+- open_view, activate_view, close_view, open_perspective, reset_per
+- open_editor, save, save_all, close_editor.
+- run_command, quick_access (Ctrl+3), open_preferences and set_pref
+- undo and redo.
+
+Act: dialogs and wizards
+- wizard_next, wizard_back, wizard_finish, wizard_cancel.
+- dialog_confirm, dialog_dismiss.
+
+Wait
+- wait_for always times out. Its conditions are: shell opened or clenabled, jobs idle, UI idle, console contains, editor open, JUnitfinished, process exit.
+
+</mcp_tools>                                                                                                                                                     
+<quality_bar>                                                                                                                                                    - Language and layout: Java for the agent. The MCP server may be Jaocol types and ship as a single jar. Use a multi-module Maven build(`agent`, `server`, `protocol`, `it`). Pin the Java release to the oldest version the targets need.                                                              - Clean separation: protocol DTOs, UI-thread executor, element regialogs, workbench, text, jobs), and the MCP adapter. No god classes.No static mutable singletons except the minimal agent bootstrap.                                                                                                 - Security: bind to 127.0.0.1 only; random per-session token; no re no arbitrary eval tool.
+- Observability: structured logging on both sides, an opt-in trace of every tool call with timing.                                                               - Packaging: one command produces the distributable (a fat server jdded). README covers install, the MCP client config snippet, toolreference, limits, and troubleshooting.                                                                                                                          - Deliver what was asked. Do not add features, abstractions, or dep
+</quality_bar>                                                                                                                                                   
+<verification>                                                                                                                                                   - Unit tests for matchers, element-ref registry, error mapping, and
+- Integration test (`it` module) that launches a real Eclipse install and performs end-to-end flows: open File > New > Project wizard and read it, navigate      Back/Next, cancel, trigger an error dialog and read it, read the Coerve a running job, and attach to an already running instance.
+- Run the tests and the packaging command yourself. Report actual output. Do not claim a flow works until a tool call or test result shows it working. If a flow cannot be tested here, say so explicitly.
+</verification>
+
+<action_boundaries>
+- Work only inside A:\sandbox\Tools\eclipse_driver. Read the Eclipsit.
+- Run `git init` only if I ask. Do not push or publish anything.
+- Stop and ask before: downloading large artifacts (Eclipse distriby beyond Maven plugins, SWTBot, and an MCP/JSON library, or deleting any file you did not create.
+- Stop and report after 3 failed attempts at the same problem; do n
+- Work in milestones and report after each with evidence: (1) skeleton + launch + connect + list_shells, (2) read_dialog and wizard tools, (3) full observe set, (4)
+full act set, (5) attach mode, (6) packaging + docs.
+</action_boundaries>
+
+<interview-me>
+- Outcome: One shippable MCP server plus a single-plugin OSGi agent. An AI can use any Eclipse RCP product the way a human does. That is about 70 tools plus basic native-dialog handling. It covers editing AUTOSAR configs, building from Build Control, running and debugging JUnit Plug-in Tests, reading results, fixing, rerunning, and feature testing with feedback.
+- User: You, with Claude Code on ISOLAR-AB first (bundled JDK 21, Equinox 3.23, SWT 3.130). It must also work on RCP installs it has never seen.
+- Why now: You want the AI to run edit, build, test, fix loops by itself. ISOLAR's own MCP is model-level and cannot reach the GUI.
+- Success:
+  a. The AI edits a config and runs the build from Build Control.
+  b. The AI starts a JUnit Plug-in Test through a Debug configuration or run_script, which streams output and returns the exit code.
+  c. The AI reads the parent's JUnit, Console and Problems views.
+  d. The AI observes and acts in the child instance, which it attaches to explicitly.
+  e. The AI edits the testcase and reruns.
+  f. The AI works through a Browse button's native file dialog end to end.
+  g. In feature-tester mode, the AI records findings in a session journal, and the opt-in call trace feeds the improvement feedback.
+- Constraints:
+  - Loopback only, with a per-session token.
+  - No eval tool.
+  - Nothing is written into the install directory.
+  - All widget access goes through the UI thread.
+  - Waits always time out.
+  - Errors are structured.
+  - Modal dialogs never block observation.
+- Assumptions (changed):
+  a. Agent: one OSGi plugin. You develop it in your Eclipse against the .target file, which is the compile classpath only. It requires the target's own bundles and
+     bundles nothing from them.
+  b. Server: a separate fat jar that embeds the agent jar. It extracts the agent to a temp or config area on launch.
+  c. SWTBot: I use it only if the target contains it. Otherwise I uc and widget traversal. I would use direct SWT only, so the agenthas no runtime dependency on it.
+  d. Java release: pinned from the oldest runtime in the target, anget file.
+  e. Build: a .target file is awkward for the command line, so the dev build is a PDE project in your Eclipse. The ship build is build.cmd using the bundled JDK and
+     jar, with no Maven. If you would rather have Tycho, say so.
+  f. Native dialogs: Windows only, handled from the server process.
+- Out of scope:
+  - Model-level AUTOSAR APIs.
+  - Remote access.
+  - Eval.
+  - Non-SWT UIs.
+  - Desktop automation beyond native dialogs of the Eclipse process.
+  - Publishing and git init.
+</interview-me>
+
+<output_format>
+Per milestone: files changed, the command run, the real result, andt list of known limitations and anything you did not verify.
+Finally I should get a complete tool in a single shippable package and easy to install and start working with...
+</output_format>  

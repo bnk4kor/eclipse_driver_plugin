@@ -1,0 +1,13 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "eclipse-driver",
+  "description": "MCP server and skill for observing and operating Eclipse RCP applications.",
+  "owner": { "name": "Bosch" },
+  "plugins": [
+    {
+      "name": "eclipse-driver",
+      "description": "Observe and operate a running Eclipse RCP application through MCP.",
+      "source": "./"
+    }
+  ]
+}
