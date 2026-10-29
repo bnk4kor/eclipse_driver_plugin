@@ -42,7 +42,7 @@ public class PackagingTest {
         byte[] jar = "jar-bytes".getBytes(StandardCharsets.UTF_8);
         Extractor ex = fake(embedded(jar, sha(jar)));
         Path dir = ex.extract(base);
-        Assert.eq(base.resolve("9.9"), dir);
+        Assert.isTrue(dir.getFileName().toString().startsWith("9.9-"), dir.toString());
         Assert.eq("jar-bytes", Files.readString(dir.resolve("agent-bundle.jar")));
         long before = Files.getLastModifiedTime(dir.resolve("agent-bundle.jar")).toMillis();
         Thread.sleep(20);
@@ -70,8 +70,9 @@ public class PackagingTest {
         } catch (IOException e) {
             Assert.isTrue(e.getMessage().contains("corrupt"), e.getMessage());
         }
-        Assert.isTrue(!Files.exists(base.resolve("9.9").resolve("agent-bundle.jar")), "no half-written jar");
-        Assert.isTrue(!Files.exists(base.resolve("9.9").resolve("agent-bundle.jar.tmp")), "no temp file left");
+        Path leftovers = Files.list(base).findFirst().orElseThrow();
+        Assert.isTrue(!Files.exists(leftovers.resolve("agent-bundle.jar")), "no half-written jar");
+        Assert.isTrue(!Files.exists(leftovers.resolve("agent-bundle.jar.tmp")), "no temp file left");
     }
 
     /** Runs only when build.cmd passes -Ded.fatjar; checks the real distributable. */
@@ -82,15 +83,16 @@ public class PackagingTest {
             return;
         }
         Path base = Files.createTempDirectory("ed-fat");
+        Path dir;
         try (JarFile jar = new JarFile(fat)) {
             Assert.isTrue(jar.getManifest().getMainAttributes().getValue("Main-Class") != null, "Main-Class");
             Assert.isTrue(jar.getEntry("embedded/agent-bundle.jar") != null, "embedded agent-bundle.jar");
             Assert.isTrue(jar.getEntry("embedded/manifest.properties") != null, "embedded manifest.properties");
             Extractor ex = new Extractor(name -> jar.getInputStream(jar.getEntry("embedded/" + name)));
-            Path dir = ex.extract(base);
+            dir = ex.extract(base);
             Assert.isTrue(Files.size(dir.resolve("agent-bundle.jar")) > 0, "agent jar extracted");
         }
-        try (JarFile agent = new JarFile(base.resolve("0.1.0").resolve("agent-bundle.jar").toFile())) {
+        try (JarFile agent = new JarFile(dir.resolve("agent-bundle.jar").toFile())) {
             Assert.eq("com.bosch.eclipsedriver.agent", agent.getManifest().getMainAttributes().getValue("Bundle-SymbolicName").split(";")[0]);
             Set<String> allowedRoots = Set.of("META-INF/", "com/bosch/eclipsedriver/");
             for (var entries = agent.entries(); entries.hasMoreElements();) {

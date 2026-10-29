@@ -50,7 +50,8 @@ public final class Extractor {
             manifest.load(in);
         }
         String version = require(manifest, "version");
-        Path target = base.resolve(version);
+        String fingerprint = fingerprint(manifest);
+        Path target = base.resolve(version + "-" + fingerprint);
         Files.createDirectories(target);
         for (String file : require(manifest, "files").split(",")) {
             file = file.trim();
@@ -85,6 +86,22 @@ public final class Extractor {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    /** A short, stable digest of the manifest's file list and per-file hashes, so a different build gets a different folder. */
+    private static String fingerprint(Properties manifest) throws IOException {
+        String files = require(manifest, "files");
+        StringBuilder canonical = new StringBuilder(files.trim());
+        for (String file : files.split(",")) {
+            canonical.append('\n').append(file.trim()).append('\u0000').append(require(manifest, file.trim() + ".sha256"));
+        }
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+        return HexFormat.of().formatHex(md.digest(canonical.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8))).substring(0, 16);
     }
 
     private static String require(Properties p, String key) throws IOException {
